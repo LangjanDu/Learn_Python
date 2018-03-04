@@ -13,3 +13,6 @@ Output: String.
 def say_hi(name, age):
 	return "Hi. My name is %s and I'm %d years old"%(name, age)
 print(say_hi("Frank", 68))
+
+#def say_hi(name, age):
+#    return "Hi. My name is {0} and I'm {1} years old".format(name,age)
