@@ -31,26 +31,26 @@ def MyHeaders(): #随机提取一个User-Agent
     UserAgentList = random.choice(UA)
     return myheaders, UserAgentList
 
-def GetProxyList(): #爬取可用的代理IP，验证有效的写入本地文件，每次启动先清除旧数据再更新
+def GetProxyList(): #爬取可用的代理IP，验证有效的写入本地文件，每次启动先清除旧数据
     with open('F:\PyDowns\zhuoku\ValidProxyList.json', 'w') as f: #清除旧代理IP
         f.truncate()
     ipurl = 'http://www.xicidaili.com/nn/1' #代理IP网站
     html = requests.get(ipurl, headers = MyHeaders()[0]).text
     ips = re.findall('(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}).*?(\d{2,6})', html, re.S)
-    protocol = re.findall('<td>H(.*?)<', html)
+    protocol = re.findall('<td>(\D{4,5})</td>', html)
     for i in range(len(ips)):
-        str = 'h' + protocol[i].lower() + '://' + ips[i][0] + ':' + ips[i][1]
-        proxy = ({'h' + protocol[i].lower() : str})
+        ip = protocol[i].lower() + '://' + ips[i][0] + ':' + ips[i][1]
+        proxy = {protocol[i].lower() : ip}
         try:
-            s = requests.get('http://www.zhuoku.com/', headers = MyHeaders()[0], proxies = proxy, timeout = 3)
-            if s.status_code == 200:
+             ver = requests.get('http://www.zhuoku.com/', headers = MyHeaders()[0], proxies = proxy, timeout = 3)
+            if ver.status_code == 200:
                 with open('F:\PyDowns\zhuoku\ValidProxyList.json', 'a') as f:
                     json.dump(proxy, f, ensure_ascii = False)
                     f.write('\n')
         except Exception as e:
             pass
 
-def GetProxy(): #提取一个随机的可用的代理IP
+def GetProxy(): #从本地文件提取一个随机的可用的代理IP
     ProxyFile = open('F:\PyDowns\zhuoku\ValidProxyList.json', 'r')
     ValidProxyList = []
     for line in ProxyFile.readlines():
@@ -72,34 +72,38 @@ def GetCarsList(url): #获取该页面所有图辑URL
     return CarsList
 
 def DownPics(url): #提取图片URL并按照图辑名分别保存到本地
-    PicsUrl = []
-    Count = 1
-    result = GetHtml(url)
-    T =  re.findall(r'<title>(.*?)\(', result)[0]
-    Title = re.sub('[\/:*?"<>|]','-',T) #去掉非法字符
-    if not os.path.isdir(Title):
-        os.mkdir(Title)
-    PicNum = re.findall('下一张</a><a href=\d+\((.*?)\)', result)[0]
-    href = re.findall('下一张</a><a href=(.*?)\(', result)[0]
-    for i in range(1, int(PicNum)+1):
-        PicsUrl.append('http://www.zhuoku.com/zhuomianbizhi/jing-car/' + href + '(%d).htm#turn' % i)
-    for i in PicsUrl:
-        result = GetHtml(i)
-        PN = re.findall(r'thumbs/tn_(.*?)"', result)[0]
-        PicName = re.sub('[\/:*?"<>|]','-',PN) #去掉非法字符
-        Path = folder_path + "\\" + Title + "\\" + PicName
-        PicUrl = re.findall(r'<img id="imageview" src="(.*?)"', result)[0]
-        headers = {'User-Agent' : MyHeaders()[1], 'Referer' : i} #反防盗链        
-        with open(Path, 'wb') as f: #下载图片
-            print ("正在下载《%s》的第%d/%d张" % (Title, Count, int(PicNum)))
-            f.write(requests.get(PicUrl, headers = headers, proxies = GetProxy()).content)
-            Count += 1
-            time.sleep(random.uniform(1.5,2.0))
-        with open('F:\PyDowns\zhuoku\downloads_history.txt', 'a') as downloads_history: #记录已下载的URL
-            downloads_history.write(i + '\n')
+    try:
+        PicsUrl = []
+        Count = 1
+        result = GetHtml(url)
+        T =  re.findall(r'<title>(.*?)\(', result)[0]
+        Title = re.sub('[\/:*?"<>|]','-',T) #去掉非法字符
+        if not os.path.isdir(Title):
+            os.mkdir(Title)
+        PicNum = re.findall('下一张</a><a href=\d+\((.*?)\)', result)[0]
+        href = re.findall('下一张</a><a href=(.*?)\(', result)[0]
+        for i in range(1, int(PicNum)+1):
+            PicsUrl.append('http://www.zhuoku.com/zhuomianbizhi/jing-car/' + href + '(%d).htm#turn' % i)
+        for i in PicsUrl:
+            result = GetHtml(i)
+            PN = re.findall(r'thumbs/tn_(.*?)"', result)[0]
+            PicName = re.sub('[\/:*?"<>|]','-',PN) #去掉非法字符
+            Path = folder_path + "\\" + Title + "\\" + PicName
+            PicUrl = re.findall(r'<img id="imageview" src="(.*?)"', result)[0]
+            headers = {'User-Agent' : MyHeaders()[1], 'Referer' : i} #反防盗链        
+            with open(Path, 'wb') as f: #下载图片
+                print ("正在下载《%s》的第%d/%d张" % (Title, Count, int(PicNum)))
+                f.write(requests.get(PicUrl, headers = headers, proxies = GetProxy()).content)
+                Count += 1
+                time.sleep(random.uniform(1.5,2.0))
+            with open('F:\PyDowns\zhuoku\downloads_history.txt', 'a') as downloads_history: #记录已下载的URL
+                downloads_history.write(i + '\n')
+    except:
+        with open('F:\PyDowns\zhuoku\error_history.txt', 'a') as e:
+            e.write(url + '\n')
 
 def main(): #主程序
-    pageurl = 'http://www.zhuoku.com/zhuomianbizhi/jing-car/index-8.htm' #www.zhuoku.com网汽车类壁纸第*页
+    pageurl = 'http://www.zhuoku.com/zhuomianbizhi/jing-car/index-1.htm' #www.zhuoku.com网汽车类壁纸第*页
     GetProxyList()
     CarsList = GetCarsList(pageurl)
     threads = []
